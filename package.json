@@ -1,0 +1,22 @@
+{
+  "name": "photografix-skin-studio-ai",
+  "version": "1.0.0",
+  "description": "Photografix Skin Studio AI - professional beauty retouching engine for Adobe Photoshop UXP",
+  "type": "module",
+  "private": true,
+  "author": "Photografix Academy",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "test": "node --test 'tests/*.test.js'",
+    "test:verbose": "node --test --test-reporter=spec 'tests/*.test.js'",
+    "fixtures": "node tools/make-fixtures.js",
+    "render": "node tools/render-samples.js",
+    "validate": "node tools/validate-plugin.js",
+    "harness": "node tools/serve.js",
+    "build": "node tools/build-plugin.js",
+    "release": "node tools/build-release.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,97 @@
+Photografix Skin Studio AI — Free Core Edition
+Copyright (c) Photografix Academy
+
+================================================================
+WHAT YOU HAVE
+================================================================
+
+  plugin/photografix-skin-studio/   the Photoshop plugin (this is what you load)
+  panel-preview.html                open in a browser to see the panel first,
+                                    with no Photoshop and nothing to install
+  INSTALL.txt                       this file
+  docs-*.md                         tool reference, workflow guide, skin science
+  LICENSE
+
+================================================================
+INSTALL (about two minutes)
+================================================================
+
+1. Install "Adobe UXP Developer Tool" (free) from the Adobe Creative Cloud
+   desktop app, and make sure Photoshop 24.2 or newer is installed.
+
+2. Open Photoshop first, then open UXP Developer Tool.
+
+3. In UXP Developer Tool click "Add Plugin…".
+
+4. Select this file from the unpacked download:
+
+       plugin/photografix-skin-studio/manifest.json
+
+5. Click "Load".
+
+6. In Photoshop: Window > Extensions (or Plugins) > Photografix Skin Studio AI.
+   The panel opens docked on the right.
+
+The plugin works offline and never contacts a server. No account, no key,
+no credits, no subscription.
+
+================================================================
+FIRST RUN
+================================================================
+
+1. Open a portrait photograph.
+2. In the panel press "Analyse" so the plugin reads the face and body.
+3. Work down the seven stages. "Preview" shows a stage without committing it;
+   "Apply stage" commits it. "Build Photoshop layers" writes the whole stack
+   into your document as editable layer groups.
+4. Nothing is ever flattened. Your original layer stays untouched at the bottom
+   of the stack, and every Photografix stage is its own group you can hide,
+   reorder or delete.
+
+================================================================
+WHAT TO TRY FIRST
+================================================================
+
+For a normal portrait retouch, the defaults are deliberately conservative:
+
+  Stage 1  Frequency Separation  -> Normal mode, radius 6-10
+  Stage 2  Micro Dodge & Burn    -> Very subtle
+  Stage 3  Sculpt Dodge & Burn   -> Natural
+  Stage 4  African Skin Tone     -> Auto-match on
+  Stage 5  Colour Grading        -> your look
+  Stage 6  Glossy Skin           -> Subtle glow
+  Stage 7  Final Review          -> read the checks, change nothing
+
+Stage 7 measures texture loss, skin-lightness drift, edge halos, clipping and
+face-to-body colour matching against your original, and tells you what it
+found. If it says PASS, you are done.
+
+================================================================
+IF SOMETHING GOES WRONG
+================================================================
+
+"Add Plugin" refuses the file
+    UXP Developer Tool needs manifest.json at the root of the folder you
+    select. If you unpacked twice you may have a folder inside a folder;
+    select the inner one.
+
+The panel opens but says "Preview mode"
+    Photoshop was not running, or the plugin was opened in a browser. Launch
+    Photoshop and load the plugin again from UXP Developer Tool.
+
+"Build Photoshop layers" does nothing
+    It only works with a real document open in Photoshop. On a wrong document
+    (32-bit, or a document with no pixel layer) it reports why in the panel.
+
+================================================================
+VERIFICATION, STATED HONESTLY
+================================================================
+
+The algorithms, layer model, panel and Photoshop translation layer are covered
+by an automated test suite (103 tests). The plugin has not been executed inside
+Photoshop in the environment where it was built, so the parts that only a real
+host can confirm are listed openly in docs-testing.md, which is included with
+this download: mask descriptor acceptance per Photoshop version, wide-gamut
+round-trip, and the docked panel layout at 320x480.
+
+That file is worth two minutes of your time before you use this on a paid job.
