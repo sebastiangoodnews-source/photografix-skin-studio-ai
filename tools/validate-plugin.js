@@ -25,6 +25,22 @@ for (const field of ['id', 'name', 'version', 'main', 'host', 'entrypoints']) {
 if (!existsSync(join(root, manifest.main))) problems.push(`main entry "${manifest.main}" does not exist`);
 if (!/^com\.[a-z0-9.]+$/.test(manifest.id)) problems.push(`id "${manifest.id}" is not a reverse-DNS id`);
 
+// Permissions are checked against Adobe's documented UXP schema, not against whatever
+// this plugin happens to contain.
+const permissions = manifest.requiredPermissions || {};
+if ('network' in permissions) {
+  const domains = permissions.network && permissions.network.domains;
+  // Adobe: "domains" is required and must be a non-empty string[] or "all".
+  // An empty array is invalid, and every request to an unlisted domain fails anyway.
+  if (domains === undefined) problems.push('requiredPermissions.network declares no "domains"');
+  else if (domains !== 'all' && (!Array.isArray(domains) || domains.length === 0)) {
+    problems.push('requiredPermissions.network.domains must be a non-empty string[] or "all"');
+  }
+}
+if ('localFileSystem' in permissions && !['plugin', 'request', 'fullAccess'].includes(permissions.localFileSystem)) {
+  problems.push(`localFileSystem "${permissions.localFileSystem}" is not one of plugin | request | fullAccess`);
+}
+
 const iconPaths = [];
 for (const entry of manifest.entrypoints || []) {
   if (entry.type === 'panel' && !entry.minimumSize) problems.push(`panel entrypoint ${entry.id} has no minimumSize`);
@@ -54,6 +70,15 @@ const walk = (dir, acc = []) => {
 };
 
 const files = walk(join(root, 'src'));
+
+// A network permission with no network code in the plugin is both a review flag and a
+// sign the manifest was copied from a template. This plugin works fully offline.
+const allSource = files.map((f) => readFileSync(f, 'utf8')).join('\n');
+const usesNetwork = /\bfetch\s*\(|new\s+WebSocket|XMLHttpRequest/.test(allSource);
+if (!usesNetwork && 'network' in permissions) {
+  problems.push('manifest declares network access but src/ makes no network requests - remove the permission');
+}
+
 for (const file of files) {
   const code = readFileSync(file, 'utf8');
   const rel = file.slice(root.length + 1);

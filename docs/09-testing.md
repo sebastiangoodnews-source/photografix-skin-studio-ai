@@ -2,21 +2,47 @@
 
 ## The honest summary
 
-- **103 automated tests pass** (`npm test`), covering the maths, the analysis, all eight
-  engines, the workflow session, the panel UI, and the Photoshop *translation* layer.
+- **108 automated tests pass** (`npm test`), covering the maths, the analysis, all eight
+  engines, the workflow session, the panel UI, the Photoshop *translation* layer, and
+  the packaged zip itself.
 - **The plugin has not been run inside Photoshop.** No Photoshop host exists in this
   environment. Every test that concerns the host asserts that the bridge *fails
   cleanly* without one, and a dedicated test fails the build if any manifest or shipped
   string ever claims otherwise.
-- **103 tests are not 103% coverage of the risk.** The open items at the bottom of this
+- **108 tests are not 100% coverage of the risk.** The open items at the bottom of this
   page are the ones that only a real Photoshop run can close.
 
 ```bash
-npm test           # 103 tests
+npm test           # 108 tests
 npm run validate   # static UXP pre-flight: manifest, icons, imports, CSP
 npm run render     # 8 scenarios × 8 engines, writes artifacts/render-sheet.tsv
 npm run harness    # browser harness on :4173 for hands-on checks
 ```
+
+### `tests/packaging.test.js` (5 test blocks)
+
+These run against the artefact a user downloads, not the working tree — a plugin can
+pass every unit test while the package is unloadable, and that is exactly what happened
+during development. Each test unpacks `artifacts/dist/Photografix-Skin-Studio-AI-Free-Core-v1.0.0.zip`:
+
+1. **The package exists under its published name** and is regenerated if missing.
+2. **The zip is valid and the layout is what UXP Developer Tool expects** — `unzip -t`
+   for integrity, `plugin/manifest.json` present, every manifest-declared icon present,
+   one single top-level folder, and no `..` path traversal.
+3. **The shipped `panel.js` is a classic script, not a module.** It is parsed with
+   `vm.Script`, which uses non-module grammar, so any surviving `import`/`export`
+   throws. `index.html` must load it as `<script src="panel.js">`, must not request
+   `type="module"`, and must contain no inline script (UXP CSP).
+4. **The shipped `panel.js` boots the interface.** The packaged bytes are run in an
+   isolated context against the headless DOM, then all seven studios and all seven
+   workflow items are asserted to have rendered.
+5. **No development material leaked** into the release (tests, tools, artifacts, .git).
+
+Test 3 exists because of a real defect: the panel originally shipped as 43 ES modules
+behind `<script type="module">`. Under classic-script semantics that throws
+`SyntaxError: Cannot use import statement outside a module` and renders an empty panel
+with nothing the user can act on. The build now bundles the module graph into one
+classic IIFE script, and fails if any module syntax survives.
 
 ## What each suite proves
 
