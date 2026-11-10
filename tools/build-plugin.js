@@ -16,6 +16,7 @@ import { join, resolve, dirname, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
+import { Script } from 'node:vm';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
@@ -51,6 +52,40 @@ for (const entry of SHIP) {
     continue;
   }
   execFileSync('cp', ['-R', join(root, entry), join(staging, entry)]);
+}
+
+// ---------------------------------------------------------------------------
+// 1b. Bundle the module graph into one classic script
+// ---------------------------------------------------------------------------
+// index.html ships <script src="panel.js">, not <script type="module">. Any host
+// that treats the entry as a plain script throws
+//   SyntaxError: Cannot use import statement outside a module
+// on the first import and renders an empty panel - with no error the user can act
+// on. Rather than trusting the host to provide module semantics, the 43 ES modules
+// are compiled into one IIFE here, and the build fails if any module syntax
+// survives or if the result does not parse.
+const entryFile = resolve(root, 'src', 'ui', 'main.js');
+const panelSource = bundleModules(entryFile);
+writeFileSync(join(staging, 'panel.js'), panelSource);
+
+const stagedIndex = join(staging, manifest.main || 'index.html');
+if (existsSync(stagedIndex)) {
+  const html = readFileSync(stagedIndex, 'utf8');
+  const rewritten = html.replace(/<script[^>]*src=["'][^"']*main\.js["'][^>]*><\/script>/i, '<script src="panel.js"></script>');
+  if (rewritten === html) problems.push('index.html does not reference main.js - cannot rewrite the entry to panel.js');
+  writeFileSync(stagedIndex, rewritten);
+}
+
+// The bundle must be a syntactically valid CLASSIC script. Parsing it with
+// vm.Script uses the same grammar a browser/UXP uses for a non-module script, so
+// a stray import/export is a hard failure here instead of a blank panel later.
+try {
+  new Script(panelSource, { filename: 'panel.js' });
+} catch (err) {
+  problems.push(`panel.js does not parse as a classic script: ${err.message}`);
+}
+if (/^\s*(?:import|export)\s/m.test(panelSource)) {
+  problems.push('panel.js still contains module syntax (import/export) - UXP would fail to load it');
 }
 
 // ---------------------------------------------------------------------------
@@ -166,8 +201,7 @@ writeFileSync(join(outDir, `${name}-panel-preview.html`), buildSingleFilePreview
 console.log(`  preview  ${posix.join('artifacts', 'dist', `${name}-panel-preview.html`)} (double-click to open the panel in a browser)`);
 
 /**
- * Builds a single self-contained HTML file so the panel can be opened directly in a
- * browser (no dev server, no unzip).
+ * Compiles the ES module graph into a single classic (non-module) script.
  *
  * This is not a naive concatenation. Every module is wrapped in its own function
  * scope with an explicit export object, because two modules in this codebase export
@@ -177,11 +211,10 @@ console.log(`  preview  ${posix.join('artifacts', 'dist', `${name}-panel-preview
  * defined before their dependents, and a cycle is reported rather than silently
  * producing a file whose bindings are undefined at call time.
  *
- * The generated file is executed by the UI test suite against the headless DOM, so a
- * broken preview fails the build rather than shipping.
+ * The result is wrapped in an IIFE so nothing leaks into the global scope, and runs
+ * under 'use strict' to keep the semantics the modules had as ESM.
  */
-function buildSingleFilePreview() {
-  const entry = resolve(root, 'src', 'ui', 'main.js');
+function bundleModules(entry) {
   const seen = new Set();
   const order = [];
   const stack = [];
@@ -205,10 +238,8 @@ function buildSingleFilePreview() {
   };
   visit(entry);
   if (cycles.length) {
-    throw new Error(`preview build: import cycle(s) detected, bindings would be undefined at call time: ${cycles.map((c) => c.map((f) => f.slice(root.length + 1)).join(' -> ')).join('; ')}`);
+    throw new Error(`bundle: import cycle(s) detected, bindings would be undefined at call time: ${cycles.map((c) => c.map((f) => f.slice(root.length + 1)).join(' -> ')).join('; ')}`);
   }
-
-  const moduleId = (file) => posix.join(...file.slice(root.length + 1).split(/[\\/]/));
 
   const chunks = order.map((file) => {
     const id = moduleId(file);
@@ -254,10 +285,10 @@ function buildSingleFilePreview() {
       return `${kind} ${name}`;
     });
 
-    if (code.includes('__default')) exports.push(`default: __default`);
+    if (code.includes('__default')) exports.push('default: __default');
 
-    // Adobe host modules are resolved by UXP's own require(); in a browser there is
-    // none, and every caller already guards for a null host.
+    // Adobe host modules are resolved by UXP's own require(); a browser has none,
+    // and every caller already guards for a null host.
     const body = code.replace(/\brequire\s*\(\s*['"](photoshop|uxp)['"]\s*\)/g, 'null');
 
     return `/* ---- ${id} ---- */
@@ -267,8 +298,7 @@ return { ${exports.join(', ')} };
 });`;
   });
 
-  const runtime = `
-const __modules = Object.create(null);
+  const runtime = `const __modules = Object.create(null);
 const __cache = Object.create(null);
 const __define = (id, factory) => { __modules[id] = factory; };
 const __require = (id) => {
@@ -278,13 +308,45 @@ const __require = (id) => {
   const exports = factory();
   __cache[id] = exports;
   return exports;
-};
-`;
+};`;
+
+  return `/* Photografix Skin Studio AI - generated by tools/build-plugin.js. Do not edit.
+   ${order.length} modules compiled to one classic script. */
+(function () {
+'use strict';
+${runtime}
+
+${chunks.join('\n\n')}
+
+__require(${JSON.stringify(moduleId(entry))});
+})();`;
+}
+
+/** Repo-relative, POSIX-separated module id, e.g. "src/ui/main.js". */
+function moduleId(file) {
+  return posix.join(...file.slice(root.length + 1).split(/[\\/]/));
+}
+
+/**
+ * Builds a single self-contained HTML file so the panel can be opened directly in a
+ * browser (no dev server, no unzip). It reuses the same module bundler as the shipped
+ * plugin, so the preview cannot drift from what ships.
+ */
+function buildSingleFilePreview() {
+  const entry = resolve(root, 'src', 'ui', 'main.js');
+
+  // Reuse the plugin bundler's body, dropping only the IIFE wrapper so the preview
+  // can assign its own module table; both are the same compiled graph.
+  const bundled = bundleModules(entry);
+  const body = bundled
+    .replace(/^\/\* Photografix[\s\S]*?\*\/\n/, '')
+    .replace(/^\(function \(\) \{\n'use strict';\n/, '')
+    .replace(/\n\}\)\(\);\s*$/, '');
 
   const sourceHtml = readFileSync(join(root, 'index.html'), 'utf8');
   const cssPath = join(root, 'src', 'ui', 'styles.css');
   const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : '';
   return sourceHtml
     .replace(/<link[^>]+styles\.css[^>]*>/i, () => `<style>\n${css}\n</style>`)
-    .replace(/<script[^>]*src=["'][^"']*main\.js["'][^>]*><\/script>/i, () => `<script type="module">\n${runtime}\n${chunks.join('\n\n')}\n__require(${JSON.stringify(moduleId(entry))});\n</script>`);
+    .replace(/<script[^>]*src=["'][^"']*main\.js["'][^>]*><\/script>/i, () => `<script type="module">\n${body}\n</script>`);
 }

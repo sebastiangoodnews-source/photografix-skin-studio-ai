@@ -2,6 +2,11 @@ node_modules/
 dist/
 build/
 *.zip
+
+# The published release package is a deliverable, not a build by-product:
+# it is committed so it can be served as a real download. Build output stays
+# ignored via artifacts/dist/ below.
+!download/Photografix-Skin-Studio-AI-Free-Core-v*.zip
 .DS_Store
 Thumbs.db
 .tmp/

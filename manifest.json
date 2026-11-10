@@ -11,10 +11,7 @@
     }
   ],
   "requiredPermissions": {
-    "localFileSystem": "fullAccess",
-    "network": {
-      "domains": []
-    }
+    "localFileSystem": "fullAccess"
   },
   "entrypoints": [
     {
@@ -44,8 +41,16 @@
           "width": 23,
           "height": 23,
           "path": "icons/panel.png",
-          "scale": [1, 2],
-          "theme": ["darkest", "dark", "lightest", "light"]
+          "scale": [
+            1,
+            2
+          ],
+          "theme": [
+            "darkest",
+            "dark",
+            "lightest",
+            "light"
+          ]
         }
       ]
     }
@@ -55,8 +60,16 @@
       "width": 48,
       "height": 48,
       "path": "icons/plugin.png",
-      "scale": [1, 2],
-      "theme": ["darkest", "dark", "lightest", "light"]
+      "scale": [
+        1,
+        2
+      ],
+      "theme": [
+        "darkest",
+        "dark",
+        "lightest",
+        "light"
+      ]
     }
   ]
 }

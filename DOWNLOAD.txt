@@ -1,0 +1,4 @@
+Photografix Skin Studio AI - Free Core Edition v1.0.0
+Plugin package: download/Photografix-Skin-Studio-AI-Free-Core-v1.0.0.zip
+Size: 422976 bytes  SHA-256: 61dde9846a2b00f8d9c87a6f3bdb27544bf32f33d5e0db906f740280bb6ebe5c
+Live download page: download/index.html (run: npm run download)

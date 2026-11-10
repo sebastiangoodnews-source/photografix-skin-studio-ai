@@ -1,15 +1,22 @@
-Photografix Skin Studio AI — Free Core Edition
+Photografix Skin Studio AI — Free Core Edition v1.0.0
 Copyright (c) Photografix Academy
 
 ================================================================
 WHAT YOU HAVE
 ================================================================
 
-  plugin/photografix-skin-studio/   the Photoshop plugin (this is what you load)
-  panel-preview.html                open in a browser to see the panel first,
-                                    with no Photoshop and nothing to install
-  INSTALL.txt                       this file
-  docs-*.md                         tool reference, workflow guide, skin science
+  plugin/                    the Photoshop plugin — THIS IS WHAT YOU LOAD
+    manifest.json            the UXP manifest (select this file)
+    index.html               the panel
+    panel.js                 the whole plugin compiled to one script
+    icons/                   panel and plugin icons
+    src/                     readable module source, for reference
+  panel-preview.html         open in any browser to see the panel first,
+                             with no Photoshop and nothing to install
+  INSTALL.txt                this file
+  RELEASE_NOTES_v1.0.0.md    what is in this version and what is unverified
+  docs-*.md                  tool reference, workflow guide, skin science,
+                             Photoshop integration notes, testing notes
   LICENSE
 
 ================================================================
@@ -23,17 +30,34 @@ INSTALL (about two minutes)
 
 3. In UXP Developer Tool click "Add Plugin…".
 
-4. Select this file from the unpacked download:
+4. Select THIS file from the unpacked download:
 
-       plugin/photografix-skin-studio/manifest.json
+       plugin/manifest.json
 
 5. Click "Load".
 
-6. In Photoshop: Window > Extensions (or Plugins) > Photografix Skin Studio AI.
-   The panel opens docked on the right.
+6. In Photoshop: Plugins > Photografix Skin Studio AI.
+   (On some versions it appears under Window > Extensions.)
 
 The plugin works offline and never contacts a server. No account, no key,
 no credits, no subscription.
+
+================================================================
+ABOUT .ccx / DOUBLE-CLICK INSTALLERS
+================================================================
+
+A .ccx is Adobe's signed plugin package format. Producing one that a user can
+double-click requires an Adobe-issued signing certificate tied to a publisher
+account, created through UXP Developer Tool or the Adobe Exchange pipeline.
+That certificate belongs to the publisher and could not be produced in the
+environment where this package was built, so this release does not ship a
+.ccx: an unsigned .ccx is not installable, and shipping one would only look
+like an installer.
+
+This package installs via the documented developer route above, which is the
+same route Adobe documents for unsigned/sideloaded plugins. To produce a .ccx
+later, open this folder in UXP Developer Tool > Package and sign it with your
+own Adobe credentials.
 
 ================================================================
 FIRST RUN
@@ -52,14 +76,14 @@ FIRST RUN
 WHAT TO TRY FIRST
 ================================================================
 
-For a normal portrait retouch, the defaults are deliberately conservative:
+For a normal portrait retouch the defaults are deliberately conservative:
 
   Stage 1  Frequency Separation  -> Normal mode, radius 6-10
   Stage 2  Micro Dodge & Burn    -> Very subtle
   Stage 3  Sculpt Dodge & Burn   -> Natural
   Stage 4  African Skin Tone     -> Auto-match on
   Stage 5  Colour Grading        -> your look
-  Stage 6  Glossy Skin           -> Subtle glow
+  Stage 6  Glossy Skin            -> Subtle glow
   Stage 7  Final Review          -> read the checks, change nothing
 
 Stage 7 measures texture loss, skin-lightness drift, edge halos, clipping and
@@ -73,10 +97,10 @@ IF SOMETHING GOES WRONG
 "Add Plugin" refuses the file
     UXP Developer Tool needs manifest.json at the root of the folder you
     select. If you unpacked twice you may have a folder inside a folder;
-    select the inner one.
+    select the inner one so that plugin/manifest.json is the path.
 
 The panel opens but says "Preview mode"
-    Photoshop was not running, or the plugin was opened in a browser. Launch
+    Photoshop was not running, or the panel was opened in a browser. Launch
     Photoshop and load the plugin again from UXP Developer Tool.
 
 "Build Photoshop layers" does nothing
@@ -88,10 +112,19 @@ VERIFICATION, STATED HONESTLY
 ================================================================
 
 The algorithms, layer model, panel and Photoshop translation layer are covered
-by an automated test suite (103 tests). The plugin has not been executed inside
-Photoshop in the environment where it was built, so the parts that only a real
-host can confirm are listed openly in docs-testing.md, which is included with
-this download: mask descriptor acceptance per Photoshop version, wide-gamut
-round-trip, and the docked panel layout at 320x480.
+by 108 automated tests, including tests that open the packaged zip, parse the
+shipped panel.js with module syntax unavailable, and boot it to check that all
+seven studios render.
 
-That file is worth two minutes of your time before you use this on a paid job.
+The plugin has NOT been executed inside Photoshop, because no Photoshop host
+existed in the environment where it was built. This package does not claim
+otherwise. The behaviours only a real host can confirm are listed in
+RELEASE_NOTES_v1.0.0.md and docs-09-testing.md, both included:
+
+  - layer-mask descriptor acceptance per Photoshop version
+    (a bake-into-pixels fallback exists)
+  - wide-gamut / 32-bit document round-trip
+  - docked panel layout at the 320x480 minimum size
+  - placeEvent throughput and modal timing on very large documents
+
+Worth two minutes of your time before you use this on a paid job.

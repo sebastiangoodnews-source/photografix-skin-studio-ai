@@ -1,0 +1,40 @@
+name: Attach release asset
+
+# Runs on GitHub's own infrastructure, which can reach uploads.github.com.
+# The sandbox where the package was built cannot, so this exists purely to move
+# the already-verified zip onto the release. It does not build anything.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the package to
+        required: true
+        default: v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arena/skin-studio-release-v1.0.0
+
+      - name: Verify the package before uploading
+        run: |
+          ZIP="download/Photografix-Skin-Studio-AI-Free-Core-v1.0.0.zip"
+          test -f "$ZIP" || { echo "package missing"; exit 1; }
+          echo "size: $(stat -c%s "$ZIP") bytes"
+          sha256sum "$ZIP"
+          # The sha256 is asserted so a corrupted or swapped file cannot be published.
+          echo "61dde9846a2b00f8d9c87a6f3bdb27544bf32f33d5e0db906f740280bb6ebe5c  $ZIP" | sha256sum -c -
+
+      - name: Upload asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release upload "$TAG" "download/Photografix-Skin-Studio-AI-Free-Core-v1.0.0.zip" --clobber
+          gh release view "$TAG" --json assets --jq '.assets[] | "\(.name)  \(.size) bytes"'

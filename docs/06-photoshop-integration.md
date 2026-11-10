@@ -24,6 +24,61 @@ At boot:
 4. **Apply stage** adds the stage to the session (still nothing written to the
    document). **Build Photoshop layers** replays the whole stack.
 
+## Panel loading, and the module-compatibility issue
+
+The panel is shipped as **one classic script**, `panel.js`, loaded with:
+
+```html
+<script src="panel.js"></script>
+```
+
+Not `<script type="module">`. This is deliberate and it is load-bearing.
+
+The source is 43 ES modules, which is right for development. Shipping them as a module
+graph, however, depends on the host providing module semantics. Any host that treats
+the entry as a plain script throws
+
+```
+SyntaxError: Cannot use import statement outside a module
+```
+
+on the first `import`, and the panel renders empty — with no error a user could act on.
+That failure mode was reproduced against the built file during development, not
+assumed.
+
+Since Photoshop's UXP runtime cannot be exercised in this environment, the dependency
+was removed rather than trusted:
+
+- `tools/build-plugin.js` compiles the module graph into one IIFE with a small module
+  registry. Each module keeps its **own scope** — two modules in this codebase export
+  `maskCoverage`, so a flat concatenation would be a syntax error — and the graph is
+  resolved depth-first, with import cycles reported rather than silently producing
+  undefined bindings.
+- The build then parses the result with `vm.Script` (non-module grammar) and fails if
+  any `import`/`export` survives.
+- `tests/packaging.test.js` repeats both checks against the **packaged zip**, then
+  boots the packaged bytes and asserts that all seven studios render.
+
+The readable `src/` tree still ships inside `plugin/` for reference. It is inert: the
+panel never loads it.
+
+## Permissions
+
+The manifest requests exactly one permission:
+
+```json
+"requiredPermissions": { "localFileSystem": "fullAccess" }
+```
+
+`localFileSystem` is needed because committing a stage writes temporary PNGs via
+`uxp.storage.localFileSystem.getTemporaryFolder()` before `placeEvent` places them.
+
+An earlier revision also declared `"network": { "domains": [] }`. Adobe's UXP schema
+requires `domains` to be a non-empty `string[]` or `"all"`, so that declaration was both
+invalid and unnecessary — the plugin makes no network requests at all. It has been
+removed, and `tools/validate-plugin.js` now rejects an empty domain list and also flags
+a network permission declared without any network code in `src/`.
+
 ## Capture
 
 `src/photoshop/capture.js` uses `imaging.getPixels` in a modal scope, converting
