@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Photografix Skin Studio AI</title>
+    <link rel="stylesheet" href="src/ui/styles.css" />
+  </head>
+  <body data-theme="photografix">
+    <div id="app" class="app">
+      <header class="app__header">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true">PX</div>
+          <div class="brand__text">
+            <h1 class="brand__title">Photografix <span>Skin Studio AI</span></h1>
+            <p class="brand__subtitle">Professional Beauty Retouching Engine</p>
+          </div>
+        </div>
+        <div class="header__status">
+          <span id="host-badge" class="badge badge--pending">Checking Photoshop…</span>
+          <button id="btn-analyse" class="btn btn--ghost" type="button" title="Re-analyse the document">Analyse</button>
+        </div>
+      </header>
+
+      <section class="doc" id="doc-section">
+        <div class="doc__meta" id="doc-meta">No document</div>
+        <div class="doc__preview" id="preview-shell">
+          <div class="preview__canvas-wrap">
+            <canvas id="preview-canvas" class="preview__canvas" width="320" height="420" aria-label="Retouching preview"></canvas>
+            <div class="preview__labels">
+              <span class="preview__label preview__label--before">Before</span>
+              <span class="preview__label preview__label--after">After</span>
+            </div>
+          </div>
+          <div class="preview__controls">
+            <label class="switch">
+              <input type="checkbox" id="toggle-compare" checked />
+              <span>Compare</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="toggle-mask" />
+              <span>Show mask</span>
+            </label>
+            <label class="field field--inline">
+              <span>Split</span>
+              <input type="range" id="preview-split" min="0" max="100" value="50" />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Retouching stages"></nav>
+
+      <main class="panels" id="panels"></main>
+
+      <section class="workflow" id="workflow-section">
+        <div class="workflow__header">
+          <h2>Workflow</h2>
+          <span class="hint">Stages run in order but every tool works alone.</span>
+        </div>
+        <ol class="workflow__list" id="workflow-list"></ol>
+        <div class="workflow__actions">
+          <button id="btn-apply" class="btn btn--primary" type="button">Build Photoshop layers</button>
+          <button id="btn-reset-all" class="btn btn--ghost" type="button">Reset all stages</button>
+        </div>
+      </section>
+
+      <footer class="app__footer">
+        <span id="footer-status">Ready</span>
+        <span class="app__version">v<span id="app-version">1.0.0</span> · Free Core Edition</span>
+      </footer>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+    <script type="module" src="src/ui/main.js"></script>
+  </body>
+</html>

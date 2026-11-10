@@ -1,0 +1,62 @@
+{
+  "id": "com.photografix.skinstudio",
+  "name": "Photografix Skin Studio AI",
+  "version": "1.0.0",
+  "main": "index.html",
+  "manifestVersion": 5,
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "24.2.0"
+    }
+  ],
+  "requiredPermissions": {
+    "localFileSystem": "fullAccess",
+    "network": {
+      "domains": []
+    }
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "photografix.skinstudio.panel",
+      "label": {
+        "default": "Photografix Skin Studio AI"
+      },
+      "minimumSize": {
+        "width": 320,
+        "height": 480
+      },
+      "maximumSize": {
+        "width": 2400,
+        "height": 2400
+      },
+      "preferredDockedSize": {
+        "width": 380,
+        "height": 720
+      },
+      "preferredFloatingSize": {
+        "width": 420,
+        "height": 900
+      },
+      "icons": [
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icons/panel.png",
+          "scale": [1, 2],
+          "theme": ["darkest", "dark", "lightest", "light"]
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "width": 48,
+      "height": 48,
+      "path": "icons/plugin.png",
+      "scale": [1, 2],
+      "theme": ["darkest", "dark", "lightest", "light"]
+    }
+  ]
+}

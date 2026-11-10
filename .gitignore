@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+*.zip
+.DS_Store
+Thumbs.db
+.tmp/
+artifacts/renders/
+artifacts/fixtures/
+npm-debug.log*
+.venv/
+.arena/

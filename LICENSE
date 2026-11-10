@@ -1,0 +1,30 @@
+Photografix Skin Studio AI — Free Core Edition
+Copyright (c) Photografix Academy. All rights reserved.
+
+GRANT
+Permission is granted, free of charge, to any person obtaining a copy of this
+software and its documentation, to use, copy, modify and distribute the software
+in source and binary forms, including for commercial retouching work performed by
+the licensee, subject to the conditions below.
+
+CONDITIONS
+1. This copyright notice, the grant above and the disclaimer below must be included
+   in all copies or substantial portions of the software.
+2. The name "Photografix", "Photografix Academy" and "Photografix Skin Studio" may
+   not be used to endorse or promote products derived from this software without
+   prior written permission.
+3. Redistribution of the software as part of a paid product or a paid plugin bundle
+   requires a separate commercial licence from Photografix Academy.
+
+NO THIRD-PARTY MODEL WEIGHTS
+This software ships no neural network weights, no pre-trained model files and no
+service credentials. Every algorithm is deterministic and implemented in this
+repository, so the licence above covers the complete distributed artifact.
+
+DISCLAIMER
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
