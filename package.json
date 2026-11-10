@@ -14,7 +14,8 @@
     "validate": "node tools/validate-plugin.js",
     "harness": "node tools/serve.js",
     "build": "node tools/build-plugin.js",
-    "release": "node tools/build-release.js"
+    "release": "node tools/build-release.js",
+    "download": "node download/server.mjs"
   },
   "engines": {
     "node": ">=20"
