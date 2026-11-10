@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createDocument, installGlobals, mountIndexHtml } from './support/dom.js';
@@ -199,3 +199,45 @@ test('every schema control is bound and follows its declared range', async () =>
     }
   }
 });
+
+test('the single-file distributed preview boots the real panel', async () => {
+  // artifacts/ is generated, so this test builds the preview first: a shipped
+  // deliverable must be proven to run, not merely to exist.
+  const { execFileSync } = await import('node:child_process');
+  const { readFileSync: read, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  execFileSync(process.execPath, [join(root, 'tools', 'build-plugin.js')], { cwd: root });
+
+  const distDir = join(root, 'artifacts', 'dist');
+  const file = readdirSyncFallback(distDir).find((f) => f.endsWith('-panel-preview.html'));
+  assert.ok(file, 'build-plugin did not emit a single-file preview');
+  const html = read(join(distDir, file), 'utf8');
+
+  // no external module references may survive the packing
+  assert.equal(/src=["'][^"']*main\.js["']/.test(html), false, 'the preview still loads main.js externally');
+  assert.ok(/<style>/.test(html), 'the preview did not inline the stylesheet');
+  assert.ok(!/<script[^>]+src=/i.test(html), 'the preview references an external script');
+
+  const bundle = html.match(/<script type="module">([\s\S]*)<\/script>/);
+  assert.ok(bundle, 'no inline module found');
+  const bundlePath = join(tmpdir(), `photografix-preview-${Date.now()}.mjs`);
+  writeFileSync(bundlePath, bundle[1]);
+
+  const doc = createDocument();
+  mountIndexHtml(doc, html);
+  installGlobals(doc);
+  await import(`file://${bundlePath}?t=${Date.now()}`);
+  await new Promise((r) => setTimeout(r, 1500));
+
+  assert.equal(doc.getElementById('tabs').querySelectorAll('.tab').length, 7, 'the packed panel did not boot');
+  assert.equal(doc.getElementById('workflow-list').querySelectorAll('.workflow__item').length, 7);
+  assert.match(doc.getElementById('host-badge').textContent, /Preview mode/);
+});
+
+const readdirSyncFallback = (dir) => {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+};

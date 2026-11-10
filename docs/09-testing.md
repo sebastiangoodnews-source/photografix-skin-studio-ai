@@ -2,17 +2,17 @@
 
 ## The honest summary
 
-- **102 automated tests pass** (`npm test`), covering the maths, the analysis, all eight
+- **103 automated tests pass** (`npm test`), covering the maths, the analysis, all eight
   engines, the workflow session, the panel UI, and the Photoshop *translation* layer.
 - **The plugin has not been run inside Photoshop.** No Photoshop host exists in this
   environment. Every test that concerns the host asserts that the bridge *fails
   cleanly* without one, and a dedicated test fails the build if any manifest or shipped
   string ever claims otherwise.
-- **102 tests are not 102% coverage of the risk.** The open items at the bottom of this
+- **103 tests are not 103% coverage of the risk.** The open items at the bottom of this
   page are the ones that only a real Photoshop run can close.
 
 ```bash
-npm test           # 102 tests
+npm test           # 103 tests
 npm run validate   # static UXP pre-flight: manifest, icons, imports, CSP
 npm run render     # 8 scenarios × 8 engines, writes artifacts/render-sheet.tsv
 npm run harness    # browser harness on :4173 for hands-on checks
@@ -99,7 +99,7 @@ produces a document-sized RGBA buffer, every adjustment an engine emits has a re
 descriptor with the units Photoshop requires, the seven-stage stack stays under the
 60-layer creation limit with unique names, and the settings-record layer is hidden.
 
-### `tests/ui.test.js` (12 test blocks)
+### `tests/ui.test.js` (13 test blocks)
 Runs the real panel against the real `index.html` through a small DOM implementation
 (`tests/support/dom.js`): boot produces seven stage tabs and seven workflow items,
 every panel renders controls from its engine schema with correct min/max/defaults,
@@ -110,6 +110,12 @@ rows, and re-analysis does not duplicate the safeguard sliders.
 
 That last one and the panel-scoping selector were both **real bugs found by these
 tests** during development, which is the argument for having them.
+
+The thirteenth test builds the distributable bundle and **boots it**: it packs the panel
+into a single HTML file, imports the generated module against the headless DOM, and
+requires seven tabs and a live workflow list. This exists because a naive concatenation
+of the modules threw `Identifier 'maskCoverage' has already been declared` — two modules
+export the same name — and a bundle that merely *exists* would have shipped broken.
 
 ## Invariants the suite enforces continuously
 

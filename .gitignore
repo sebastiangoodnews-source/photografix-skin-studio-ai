@@ -10,3 +10,4 @@ artifacts/fixtures/
 npm-debug.log*
 .venv/
 .arena/
+artifacts/dist/

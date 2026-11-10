@@ -9,7 +9,7 @@ import { STAGE_ORDER } from '../config/presets.js';
 import { probeHost, documentInfo, executeAsModal, getPhotoshop } from '../photoshop/api.js';
 import { captureDocument } from '../photoshop/capture.js';
 import { PhotoshopLayerManager } from '../photoshop/layerManager.js';
-import { createPortrait } from '../../tools/lib/portrait.js';
+import { createPortrait } from '../core/fixtures/portrait.js';
 import { createLogger, setLogLevel } from '../core/util/log.js';
 
 const log = createLogger('panel');

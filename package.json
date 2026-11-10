@@ -12,7 +12,9 @@
     "fixtures": "node tools/make-fixtures.js",
     "render": "node tools/render-samples.js",
     "validate": "node tools/validate-plugin.js",
-    "harness": "node tools/serve.js"
+    "harness": "node tools/serve.js",
+    "build": "node tools/build-plugin.js",
+    "release": "node tools/build-release.js"
   },
   "engines": {
     "node": ">=20"
