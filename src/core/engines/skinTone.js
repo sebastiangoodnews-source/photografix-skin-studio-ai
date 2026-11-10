@@ -12,6 +12,16 @@ import { ProcessingEngine, medianApprox } from './common.js';
 import { SKIN_TONE_CATEGORIES, SKIN_TONE_STYLES, matchPaletteEntry, paletteById, styleById } from './africanSkinPalette.js';
 
 /**
+ * Maximum total L* a single run may ADD to a fully melanin-rich pixel.
+ *
+ * Calibrated so one run stays inside the Final Review's default melanin allowance
+ * (4 L*) with room for the styles above and below it, while fair skin (melanin
+ * near 0) is free to move by the full amount. Darkening is never capped here - the
+ * rule is about not lightening deep skin.
+ */
+export const LUMINANCE_CAP_MAX = 5.5;
+
+/**
  * SkinToneEngine
  *
  * The signature Photografix capability. Principles encoded in the maths:
@@ -169,14 +179,25 @@ export class SkinToneEngine extends ProcessingEngine {
       a = C * Math.cos(H);
       b = C * Math.sin(H);
 
-      // --- 3. luminance: bounded, shadow-weighted, melanin-protected ---
+      // --- 3. luminance: bounded, and the TOTAL lift is capped ---
+      // Four things can raise L* here: the palette anchor (above), the requested
+      // slider, the style's own luminance, and the style's shadow lift. Each used to be
+      // bounded on its own, which is not the same thing - their sum could still walk
+      // deep skin upward by several levels per run, and a multi-stage pass compounds it.
+      // So the total added lightness is capped, and the cap tightens as melanin rises,
+      // because "deep skin is never brightened" is the rule this studio exists to
+      // enforce. The reviewer measures exactly this (median L* before/after) in stage 7.
+      const totalCap = Math.max(0, LUMINANCE_CAP_MAX * (1 - melanin));
+      if (L > lab.L) L = lab.L + Math.min(L - lab.L, totalCap);
       const requestedLift = (s.luminance + treatment.luminance * 0.5) * strength;
       let lift = requestedLift;
       if (lift > 0) lift = Math.min(lift, luminanceBudget * (1 - melanin * 0.5));
       // shadow lift helps deep skin read detail without raising the base
       const shadowLift = (treatment.shadowLift || 0) * strength * shadows[i] * (0.4 + melanin * 0.6);
       const highlightLift = (treatment.midtoneLift || 0) * strength * midtones[i] * 0.4;
-      L += lift * 0.55 + shadowLift + highlightLift;
+      const wanted = lift * 0.55 + shadowLift + highlightLift;
+      const budgetLeft = Math.max(0, totalCap - Math.max(0, L - lab.L));
+      L += Math.min(wanted, budgetLeft);
       L = clamp(L, 0, 100);
 
       // --- 4. reference match (optional) ---

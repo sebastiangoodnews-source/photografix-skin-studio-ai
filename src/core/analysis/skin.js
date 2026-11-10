@@ -11,7 +11,15 @@ import { guidedFilter, softThreshold, boxMean } from '../image/morphology.js';
  * that makes retouching tools ignore dark skin.
  */
 
-export const SKIN_L_RANGE = [4, 99];
+/**
+ * Luminance limits are deliberately wide. A hard floor is the classic bug that makes
+ * a retoucher's mask stop at the shadow line: the shadowed half of a deep-skinned
+ * torso can sit at L* 2-4 where the blue-yellow axis has collapsed. Below
+ * DEEP_SHADOW_L the test in `skinProbability` switches to the red axis, which survives
+ * that compression, instead of rejecting the pixel.
+ */
+export const SKIN_L_RANGE = [1.5, 99];
+export const DEEP_SHADOW_L = 9;
 
 /**
  * Soft skin membership in 0..1.
@@ -22,12 +30,32 @@ export const skinProbability = (r, g, b) => {
   const { L, a, b: bb } = rgbToLab(r, g, b);
   if (L < SKIN_L_RANGE[0] || L > SKIN_L_RANGE[1]) return 0;
 
+  // ---- Deep shadow branch -------------------------------------------------
+  // In underexposed deep skin the b* axis collapses toward zero (the blue-yellow
+  // axis has almost no signal left) while a* holds its value, so a hue-angle test
+  // reads the shadow as "wrong hue" and the mask stops dead at the shadow line.
+  // Judging on the red axis instead keeps one continuous mask across the face,
+  // the neck and the shadowed body, and still rejects neutral/cool backgrounds
+  // (their a* sits near zero).
+  if (L < DEEP_SHADOW_L) {
+    // a* alone cannot separate warm skin from a warm dark object (a dark purple reads
+    // a* 5, b* -2 and a dark brown reads a* 15, b* 5). The sign and size of b* is what
+    // makes the difference: skin in shadow stays on the yellow side of neutral.
+    const redScore = smoothBand(a, 4, 9, 60, 92);
+    const yellowScore = smoothBand(bb, 0.5, 3.5, 60, 90);
+    const chroma = Math.sqrt(a * a + bb * bb);
+    const chromaScore = smoothBand(chroma, 4, 9, 52, 68);
+    return clamp(redScore * 0.42 + yellowScore * 0.34 + chromaScore * 0.24);
+  }
+
   // Hue window: skin lies between red-orange and orange-yellow (Lab hue angle).
   const hue = (Math.atan2(bb, a) * 180) / Math.PI;
   const hueScore = gaussianWindow(hue, 46, 34);
 
   // Chroma: rises with melanin richness but plateaus; never require brightness.
   const chroma = Math.sqrt(a * a + bb * bb);
+  // A cool surface (purple, blue) can share skin's chroma magnitude, so chroma alone
+  // must not carry much weight - hue and the warm axis do the discriminating.
   const chromaScore = smoothBand(chroma, 3.5, 11, 52, 68);
 
   // Deep skin: keep more of the red axis than the yellow axis (a* > b* often).
@@ -38,7 +66,7 @@ export const skinProbability = (r, g, b) => {
   const warmth = a + bb * 0.5;
   const warmthScore = smoothBand(warmth, -4, 1, 90, 120);
 
-  return clamp(hueScore * 0.34 + chromaScore * 0.28 + ratioScore * 0.2 + warmthScore * 0.18);
+  return clamp(hueScore * 0.44 + chromaScore * 0.16 + ratioScore * 0.22 + warmthScore * 0.18);
 };
 
 const gaussianWindow = (v, centre, spread) => {
@@ -74,8 +102,8 @@ export const skinProbabilityField = (frame, options = {}) => {
 
 export const skinMask = (frame, options = {}) => {
   const prob = skinProbabilityField(frame, options);
-  const low = options.low ?? 0.28;
-  const high = options.high ?? 0.62;
+  const low = options.low ?? 0.34;
+  const high = options.high ?? 0.66;
   const mask = softThreshold(prob, low, high);
   if (options.refine !== false) {
     const guide = lumaField(frame, options.guideScale ?? 255);

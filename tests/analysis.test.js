@@ -41,6 +41,44 @@ test('deep skin is not penalised for being dark', () => {
   assert.ok(Math.abs(ebony - fair) < 0.45, 'detector must be luminance-neutral');
 });
 
+test('deep-skin shadow keeps one continuous mask (no shadow-line cut)', () => {
+  // Regression: the b* axis collapses in underexposed deep skin, so a hue-angle test
+  // dropped the shadowed half of the torso and the mask stopped at the shadow line.
+  // That showed up as a diagonal band in the composite.
+  const frame = createPortrait({ width: 420, height: 560, tone: 'deep-chocolate' });
+  const mask = skinMask(frame, {});
+  const width = frame.width;
+  // Walk down the shadowed side of the torso. The first rows are still background;
+  // the assertion is that once the subject starts, the mask does not let go of it
+  // (the original bug produced a hard stop at the shadow boundary).
+  const x = Math.round(width * 0.78);
+  let started = false;
+  let misses = 0;
+  let rows = 0;
+  for (let y = 330; y < 520; y += 3) {
+    const i = y * width + x;
+    const onSubject = frame.r[i] >= 12 && frame.g[i] <= frame.r[i];
+    if (!onSubject) {
+      if (started) misses += 2; // leaving the subject again is a cut
+      continue;
+    }
+    started = true;
+    rows++;
+    if (mask[i] <= 0.5) misses++;
+  }
+  assert.ok(rows > 20, `expected the torso to span the probe, got ${rows} rows`);
+  assert.equal(misses, 0, `the mask cut the shadowed torso in ${misses} places`);
+});
+
+test('deep shadow is still not confused with background or clothing', () => {
+  // the shadow branch must not become a "everything dark is skin" rule
+  for (const [r, g, b] of [[22, 24, 32], [10, 12, 26], [8, 8, 9], [18, 30, 22], [26, 20, 28], [40, 20, 45], [12, 14, 22]]) {
+    assert.ok(skinProbability(r, g, b) < 0.4, `(${r},${g},${b}) read as skin at ${skinProbability(r, g, b).toFixed(2)}`);
+  }
+  // and it must stay on the warm red axis
+  assert.ok(skinProbability(37, 0, 0) > 0.8, 'a shadowed deep-skin sample should read as skin');
+});
+
 test('melanin index and undertone classification are ordered', () => {
   const ebony = melaninIndex(22, 15);
   const fair = melaninIndex(84, 18);

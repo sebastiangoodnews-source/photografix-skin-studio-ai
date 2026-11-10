@@ -22,10 +22,32 @@ This plugin scores skin from **four luminance-neutral signals**:
 The result is a probability field, not a binary mask, and it is smoothed before
 thresholding so a single noisy pixel cannot punch a hole in the mask.
 
-**Tested:** all eight fixture tones from `dark-ebony` to `fair-skin` score above 0.55
-(each one), background/clothing/neutral greys score below 0.5, and the difference
-between ebony and fair confidence is under 0.45 — the detector does not "like" light
-skin more than dark skin.
+**Tested:** all eight fixture tones from `dark-ebony` to `fair-skin` score above 0.9,
+background/clothing/neutral/cool surfaces score below 0.4, and the difference between
+ebony and fair confidence is under 0.45 — the detector does not "like" light skin more
+than dark skin.
+
+### The deep-shadow branch
+
+Below L\* ≈ 9 the blue-yellow axis of Lab has almost no signal left, so a hue-angle test
+reads underexposed deep skin as "wrong hue" and the mask stops dead at the shadow line.
+In a real photograph that produces the most embarrassing possible artefact: a retouch
+that covers the lit half of the torso and abandons the shadowed half.
+
+The detector therefore switches rules in deep shadow, judging on **a\*** (which survives
+the compression) and on the **sign and size of b\*** (shadowed skin stays on the yellow
+side of neutral, while a dark purple or a dark grey does not). A dark purple at
+`(40, 20, 45)` scores 0.36; the shadowed half of a deep-skin torso scores 1.00.
+
+### Compounding lightness, and why the cap is on the total
+
+The tone engine can raise L\* from four places at once: the palette anchor, the
+luminance slider, the style's own luminance, and the style's shadow lift. Bounding each
+one individually is not enough — their sum still walked deep skin upward by several
+levels per run, and a five-stage pass compounds it. The engine now caps the **total**
+added lightness and tightens that cap toward zero as melanin rises
+(`LUMINANCE_CAP_MAX × (1 − melanin)`), so at full melanin a single run may add no
+lightness at all. Darkening is never capped.
 
 ## 2. Melanin drift is a measurable defect
 
@@ -34,7 +56,12 @@ Review stage turns that into a number: the **median L\*** of the reviewed skin, 
 and after the retouch, inside the skin mask.
 
 - ΔL below 1.0 → *stable*
-- ΔL above the allowance (default 4.0 L\*) → an alert naming the direction
+- ΔL above the allowance → an alert naming the direction
+
+The allowance scales with measured melanin: at the deepest tones it is the 4.0 L\*
+default, and it relaxes toward ~8 L\* for light skin, where dodge/burn and gloss
+legitimately add real light. The rule is never relaxed in the direction that matters —
+brightening deep skin is exactly what the check exists to catch.
 
 Deep skin is given no special code path here — the point is that the check applies to
 every tone equally and cannot be argued away by a slider. The tone engine additionally
@@ -106,7 +133,8 @@ Two details matter:
   Overlay cannot reconstruct the original — the error is small but systematic.
 - **127.5, not 128.** With an 8-bit range the neutral point is half of 255. Using 128
   adds a constant +1 level per separation layer, which accumulates across stages into
-  visible brightness creep.
+  visible brightness creep. This was a real bug in this codebase, found by the test
+  suite.
 
 The first `docs/09-testing.md` parity failure was an early implementation that used
 Overlay for one mode; the test suite now pins both facts.

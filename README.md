@@ -8,8 +8,8 @@ most retouching software treats as an afterthought: deep, rich, melanin-dense sk
 across the full African and diaspora range.
 
 > **Status of verification.** The processing engines, the layer model, the panel
-> and the *translation* layer for Photoshop are covered by 98 automated tests that
-> run here. The plugin has **not** been executed inside Photoshop in this
+> and the *translation* layer for Photoshop are covered by 102 automated tests
+> that run here. The plugin has **not** been executed inside Photoshop in this
 > repository's environment — there is no Photoshop host available — so nothing in
 > this project claims it was. See [docs/09-testing.md](docs/09-testing.md) for exactly
 > what is and is not proven.
@@ -48,7 +48,7 @@ can be tuned after the fact, and no stage ever flattens the document.
 ## Quick start (development)
 
 ```bash
-npm test              # 98 tests: engines, layers, UI, bridge translation
+npm test              # 102 tests: engines, layers, UI, bridge translation
 npm run validate      # static UXP pre-flight (manifest, icons, imports, CSP)
 npm run harness       # open http://localhost:4173 to drive the panel in a browser
 npm run render        # render every engine against every fixture → artifacts/

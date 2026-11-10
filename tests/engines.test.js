@@ -10,13 +10,30 @@ import { AdvancedFrequencyEngine } from '../src/core/engines/advancedFrequency.j
 import { ProfessionalFrequencyEngine } from '../src/core/engines/professionalFrequency.js';
 import { MicroDodgeBurnEngine } from '../src/core/engines/microDodgeBurn.js';
 import { SculptDodgeBurnEngine } from '../src/core/engines/sculptDodgeBurn.js';
-import { SkinToneEngine } from '../src/core/engines/skinTone.js';
+import { SkinToneEngine, LUMINANCE_CAP_MAX } from '../src/core/engines/skinTone.js';
 import { ColourGradingEngine, GRADE_LOOKS } from '../src/core/engines/colourGrading.js';
 import { GlossySkinEngine } from '../src/core/engines/glossySkin.js';
 import { detectHighlights } from '../src/core/engines/highlightDetection.js';
 import { matchPaletteEntry, SKIN_TONE_CATEGORIES, SKIN_TONE_STYLES, buildCustomTonePreset, validateCustomPreset } from '../src/core/engines/africanSkinPalette.js';
 import { validate } from '../src/core/util/params.js';
 import { TONE_PRESETS } from '../tools/lib/portrait.js';
+import { rgbToLab } from '../src/core/image/colorspace.js';
+import { WorkflowSession } from '../src/core/workflow/orchestrator.js';
+
+/** Median skin lightness change, the same measurement the stage-7 reviewer makes. */
+const medianLift = (before, after, mask) => {
+  const median = (frame) => {
+    const values = [];
+    for (let i = 0; i < frame.pixelCount; i++) {
+      if (mask[i] < 0.5) continue;
+      values.push(rgbToLab(frame.r[i], frame.g[i], frame.b[i]).L);
+    }
+    if (!values.length) return 0;
+    values.sort((a, b) => a - b);
+    return values[values.length >> 1];
+  };
+  return median(after) - median(before);
+};
 
 const ENGINES = [
   ['frequency-separation-normal', () => new FrequencySeparationEngine()],
@@ -264,6 +281,49 @@ test('skin tone studio protects melanin on deep skin', () => {
   const after = meanLab(result.preview, result.mask);
   assert.ok(after.L - before.L < 8, `deep skin must not be brightened (ΔL ${(after.L - before.L).toFixed(2)})`);
   assert.ok(after.L >= before.L - 1, 'and must not be darkened either');
+});
+
+test('skin tone studio cannot compound its way into brightening deep skin', () => {
+  // Regression: palette anchoring, style luminance and shadow lift were each bounded
+  // separately, so their SUM could still walk deep skin upward by several levels, and a
+  // multi-stage pass compounded it. The total added lightness is now capped, and the
+  // cap tightens as melanin rises.
+  const toneEngine = new SkinToneEngine();
+  const deep = smallPortrait('deep-chocolate');
+  const deepCtx = engineContext(deep);
+  // push every lightness-raising control to maximum at once
+  const pushed = toneEngine.run(deep, { autoMatch: true, luminance: 30, style: 'rich-chocolate-glow', strength: 100 }, deepCtx);
+  const delta = medianLift(deep, pushed.preview, deepCtx.analysis.skin);
+  assert.ok(delta < 6, `deep skin was lifted ${delta.toFixed(1)} L* in a single run`);
+
+  // The cap formula itself must tighten monotonically with melanin. (Measuring that
+  // end-to-end on a fixture is unreliable: the synthetic body sits in deep shadow, so
+  // the whole-skin melanin estimate is high even for a light-skinned fixture.)
+  const caps = [0, 0.5, 0.85, 1].map((melanin) => LUMINANCE_CAP_MAX * (1 - melanin));
+  for (let i = 1; i < caps.length; i++) {
+    assert.ok(caps[i] < caps[i - 1], `cap must shrink as melanin rises: ${caps}`);
+  }
+  assert.ok(caps[3] === 0, 'at full melanin a single run may add no lightness at all');
+});
+
+test('a full retouch of deep skin passes the reviewer with no alerts', () => {
+  const session = new WorkflowSession({});
+  const frame = smallPortrait('deep-chocolate');
+  session.setDocument(frame);
+  for (const [engineId, tool, settings] of [
+    ['frequency-separation-advanced', 'frequency', { textureSmoothing: 55 }],
+    ['micro-dodge-burn', 'microDodgeBurn', { intensity: 'subtle' }],
+    ['sculpt-dodge-burn', 'sculptDodgeBurn', { preset: 'natural' }],
+    ['skin-tone', 'skinTone', { autoMatch: true }],
+    ['glossy-skin', 'glossySkin', { preset: 'subtle-glow' }],
+  ]) {
+    session.runStage({ engineId, tool, settings });
+  }
+  const review = session.runStage({ engineId: 'final-review', tool: 'review' });
+  const checks = review.report.checks;
+  assert.deepEqual(checks.alerts.map((a) => a.id), [], `a sound five-stage deep-skin pass should not alarm: ${JSON.stringify(checks.alerts)}`);
+  assert.equal(checks.texture.lossPct < 38, true);
+  assert.equal(checks.halo.found, false);
 });
 
 test('skin tone studio auto-matches the palette category', () => {

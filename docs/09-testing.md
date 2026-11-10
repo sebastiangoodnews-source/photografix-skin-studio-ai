@@ -2,17 +2,17 @@
 
 ## The honest summary
 
-- **98 automated tests pass** (`npm test`), covering the maths, the analysis, all eight
+- **102 automated tests pass** (`npm test`), covering the maths, the analysis, all eight
   engines, the workflow session, the panel UI, and the Photoshop *translation* layer.
 - **The plugin has not been run inside Photoshop.** No Photoshop host exists in this
   environment. Every test that concerns the host asserts that the bridge *fails
   cleanly* without one, and a dedicated test fails the build if any manifest or shipped
   string ever claims otherwise.
-- **98 tests are not 98% coverage of the risk.** The open items at the bottom of this
+- **102 tests are not 102% coverage of the risk.** The open items at the bottom of this
   page are the ones that only a real Photoshop run can close.
 
 ```bash
-npm test           # 98 tests
+npm test           # 102 tests
 npm run validate   # static UXP pre-flight: manifest, icons, imports, CSP
 npm run render     # 8 scenarios × 8 engines, writes artifacts/render-sheet.tsv
 npm run harness    # browser harness on :4173 for hands-on checks
@@ -20,7 +20,7 @@ npm run harness    # browser harness on :4173 for hands-on checks
 
 ## What each suite proves
 
-### `tests/core.image.test.js` (15 tests)
+### `tests/core.image.test.js` (13 test blocks)
 Frame safety (immutable clone, deep copy, exact RGBA round-trip, resize of flat
 fields), blur behaviour, colour-space round-trips within one level (including deep
 skin), blend-mode semantics, morphology, and deterministic math.
@@ -34,14 +34,20 @@ Two of these are load-bearing for image quality:
 - **Lab round-trip** on a deep-skin sample, so a colour operation cannot shift the hue
   of melanin-rich skin through conversion error alone.
 
-### `tests/analysis.test.js` (16 tests)
+### `tests/analysis.test.js` (18 test blocks)
 Skin detection across eight tones (all above 0.55, all non-skin surfaces below 0.5, and
 ebony vs fair confidence within 0.45), the melanin index ordering, exposure statistics,
 light-direction estimation from four lighting setups, connected components, silhouette
 neck-splitting, face detection and landmarks for every tone, facial zone masks, body
 zone detection, region resolution, and the mask-feather non-spill rule.
 
-### `tests/engines.test.js` (31 tests)
+Two regression tests in this file guard the deep-shadow branch of skin detection: the
+b\* axis of a Lab colour collapses in underexposed deep skin, which used to cut every
+mask at the shadow line (visible as a diagonal band across the torso). The tests walk a
+column down the shadowed side of a deep-skin torso and require the mask to stay
+continuous, *and* require dark cool surfaces to stay rejected.
+
+### `tests/engines.test.js` (33 test blocks)
 For all eight engines: valid layer trees, exact preview↔layer parity, no clipping on
 any tone, plus engine-specific behaviour:
 
@@ -62,9 +68,12 @@ any tone, plus engine-specific behaviour:
 - gloss is subtle by default, preserves texture, orders its presets, and separates
   glow/highlights/lips/contour with masks;
 - hostile settings (every slider at maximum) produce no NaN and no out-of-range pixels;
-- 24×24, 17×63 and 80×40 frames do not crash any engine.
+- 24×24, 17×63 and 80×40 frames do not crash any engine;
+- the tone studio's total added lightness is capped and the cap tightens toward zero
+  at full melanin (regression test for a compounding-brighten bug);
+- a sound five-stage deep-skin pass reaches the reviewer with **zero alerts**.
 
-### `tests/finalReview.test.js` (15 tests)
+### `tests/finalReview.test.js` (15 test blocks)
 The reviewer's checks are tested as *detectors*, not just as code that runs:
 
 - a clean image passes with zero alerts and zero texture loss;
@@ -82,7 +91,7 @@ The reviewer's checks are tested as *detectors*, not just as code that runs:
 - the full seven-stage pipeline runs, leaves the original bit-identical, survives a
   mid-stack disable, and returns to the original when every stage is removed.
 
-### `tests/photoshop.test.js` (11 tests)
+### `tests/photoshop.test.js` (11 test blocks)
 Translation-layer only: host probing is honest outside Photoshop, host calls reject with
 readable errors, the layer manager refuses to run without a host, every blend mode the
 renderer can composite has a Photoshop name (audited against `MODES`), mask conversion
@@ -90,7 +99,7 @@ produces a document-sized RGBA buffer, every adjustment an engine emits has a re
 descriptor with the units Photoshop requires, the seven-stage stack stays under the
 60-layer creation limit with unique names, and the settings-record layer is hidden.
 
-### `tests/ui.test.js` (12 tests)
+### `tests/ui.test.js` (12 test blocks)
 Runs the real panel against the real `index.html` through a small DOM implementation
 (`tests/support/dom.js`): boot produces seven stage tabs and seven workflow items,
 every panel renders controls from its engine schema with correct min/max/defaults,

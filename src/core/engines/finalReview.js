@@ -253,6 +253,14 @@ export const runReviewChecks = ({ frame, original, analysis, scope, settings }) 
   const tex = textureLoss(original, frame, scope);
   const halo = detectEdgeHalo(frame, analysis, scope, settings.haloThreshold, original);
   const melanin = melaninDrift(original, frame, scope);
+  // The allowance is MELANIN-SCALED: "never auto-brighten deep skin" means the check
+  // must be tightest where melanin is highest, and can be relaxed where a lighter
+  // tone legitimately gains light from dodge/burn and gloss. A single flat tolerance
+  // either alarms on every normal light-skin retouch or is too loose to protect deep
+  // skin - both are worse than scaling it.
+  const allowance = melaninAllowanceFor(original, scope, settings.melaninTolerance);
+  melanin.allowance = allowance.value;
+  melanin.melanin = allowance.melanin;
   const exposure = exposureSafety(frame, original, scope);
   const match = faceBodyMatch(frame, analysis);
   const globalMean = globalDelta(original, frame);
@@ -272,11 +280,11 @@ export const runReviewChecks = ({ frame, original, analysis, scope, settings }) 
       message: `An edge band appeared along ${halo.side} (${halo.maxDelta.toFixed(0)} levels brighter or darker than the original rim). Tighten the mask feather or paint the mask back at the jaw and shoulders.`,
     });
   }
-  if (melanin.direction !== 'stable' && Math.abs(melanin.deltaL) > settings.melaninTolerance) {
+  if (melanin.direction !== 'stable' && Math.abs(melanin.deltaL) > allowance.value) {
     alerts.push({
       id: 'melanin',
-      level: Math.abs(melanin.deltaL) > settings.melaninTolerance * 2 ? 'high' : 'medium',
-      message: `Median skin lightness moved ${melanin.deltaL > 0 ? '+' : ''}${melanin.deltaL.toFixed(1)} L* (${melanin.direction}). Deep skin must not be brightened — check the skin-tone and grade groups.`,
+      level: Math.abs(melanin.deltaL) > allowance.value * 2 ? 'high' : 'medium',
+      message: `Median skin lightness moved ${melanin.deltaL > 0 ? '+' : ''}${melanin.deltaL.toFixed(1)} L* (${melanin.direction}) against an allowance of ${allowance.value.toFixed(1)} L* for skin at melanin ${allowance.melanin.toFixed(2)}. Deep skin must not be brightened — check the skin-tone and grade groups.`,
     });
   }
   if (exposure.clippedPct > 0.5) {
@@ -425,6 +433,21 @@ const rimContrast = (lumaField, rimMask, width, height) => {
   const left = side(0, half);
   const right = side(half, width);
   return { left, right, delta: (left + right) / 2 };
+};
+
+/**
+ * The melanin-scaled lightness allowance.
+ *
+ * At melanin 1.0 (the deepest skin) the allowance is exactly the slider value; at
+ * melanin 0 it is roughly twice that, because light-skin retouches pick up real light
+ * from dodge/burn and gloss and should not be nagged at. The direction of the rule is
+ * never relaxed: brightening deep skin is what the reviewer exists to catch.
+ */
+export const melaninAllowanceFor = (original, scope, tolerance) => {
+  const stats = summariseSkin(original, scope);
+  const melanin = clamp(stats?.melanin ?? 0.5, 0, 1);
+  const value = tolerance * (1 + 1.1 * (1 - melanin));
+  return { value, melanin };
 };
 
 /** Median L* of the original vs the current composite inside the scope. */
